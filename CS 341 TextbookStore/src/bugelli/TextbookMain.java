@@ -9,8 +9,25 @@ import javax.swing.SwingConstants;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.PrintWriter;
+import java.nio.file.Files;
 import java.text.DecimalFormat;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.JTextField;
 import javax.swing.JButton;
@@ -38,7 +55,11 @@ public class TextbookMain {
 	private JButton btnPrintInv;
 	public Library inventory = new Library();
 	public Item s1 = new Item();
-
+	public HashMap<Integer, Item> itemList = new HashMap<Integer, Item>();
+	private JLabel lblSku;
+	private JTextField textSKU;
+	private JButton btnDeleteByKey;
+	private JButton btnSave;
 	
 
 	/**
@@ -59,9 +80,12 @@ public class TextbookMain {
 
 	/**
 	 * Create the application.
+	 * @throws IOException 
+	 * @throws NumberFormatException 
 	 */
-	public TextbookMain() {
+	public TextbookMain() throws NumberFormatException, IOException {
 		initialize();
+		checkFile();
 		createEvents();
 	}
 
@@ -77,7 +101,7 @@ public class TextbookMain {
 		JLabel lblTitleLabel = new JLabel("Textbook Inventory");
 		lblTitleLabel.setFont(new Font("Sitka Subheading", Font.BOLD, 17));
 		lblTitleLabel.setHorizontalAlignment(SwingConstants.CENTER);
-		lblTitleLabel.setBounds(95, 11, 253, 22);
+		lblTitleLabel.setBounds(212, 11, 212, 22);
 		frame.getContentPane().add(lblTitleLabel);
 		
 		JLabel lblItemLabel = new JLabel("Item:");
@@ -112,11 +136,11 @@ public class TextbookMain {
 		
 		btnAdd = new JButton("Add a Book to Inventory");
 		btnAdd.setFont(new Font("Sitka Small", Font.PLAIN, 11));
-		btnAdd.setBounds(10, 120, 189, 23);
+		btnAdd.setBounds(10, 120, 176, 23);
 		frame.getContentPane().add(btnAdd);
 		
 		JScrollPane scrollPane = new JScrollPane();
-		scrollPane.setBounds(10, 154, 414, 96);
+		scrollPane.setBounds(10, 154, 414, 79);
 		frame.getContentPane().add(scrollPane);
 		
 		textCartOutput = new JTextArea();
@@ -132,7 +156,7 @@ public class TextbookMain {
 		
 		btnFindKey = new JButton("Find Book by Key");
 		btnFindKey.setFont(new Font("Sitka Small", Font.PLAIN, 11));
-		btnFindKey.setBounds(224, 119, 189, 23);
+		btnFindKey.setBounds(191, 120, 140, 23);
 		frame.getContentPane().add(btnFindKey);
 		
 		btnPrintInv = new JButton("Print Entire Library");
@@ -149,11 +173,63 @@ public class TextbookMain {
 		textKey.setColumns(10);
 		textKey.setBounds(245, 89, 168, 20);
 		frame.getContentPane().add(textKey);
+		
+		lblSku = new JLabel("SKU:");
+		lblSku.setFont(new Font("Sitka Small", Font.PLAIN, 15));
+		lblSku.setBounds(10, 15, 65, 14);
+		frame.getContentPane().add(lblSku);
+		
+		textSKU = new JTextField();
+		textSKU.setColumns(10);
+		textSKU.setBounds(67, 12, 107, 20);
+		frame.getContentPane().add(textSKU);
+		
+		btnDeleteByKey = new JButton("Delete ");
+		btnDeleteByKey.setFont(new Font("Sitka Small", Font.PLAIN, 11));
+		btnDeleteByKey.setBounds(337, 119, 87, 23);
+		frame.getContentPane().add(btnDeleteByKey);
+		
+		btnSave = new JButton("Save Inventory to File");
+		btnSave.setFont(new Font("Sitka Small", Font.PLAIN, 11));
+		btnSave.setBounds(117, 238, 189, 23);
+		frame.getContentPane().add(btnSave);
+	}
+	
+	private void checkFile() throws NumberFormatException, IOException {
+		File f = new File("out.txt");
+		if(f.exists()) {
+			String filePath = "out.txt";
+			
+		    String line;
+		    BufferedReader reader = new BufferedReader(new FileReader(filePath));
+		    while ((line = reader.readLine()) != null)
+		    {
+		        String[] parts = line.split(":", 2);
+		        if (parts.length >= 2)
+		        {
+		            Integer key = Integer.parseInt(parts[0]);
+		            String value = parts[1];
+		            value.trim();
+		            
+		            String[] splitStr = value.split("\\s+");
+		            Item add = new Item();
+		            add.title = splitStr[0];
+		            add.price = Double.parseDouble(splitStr[1]);
+		            add.quantity = Integer.parseInt(splitStr[2]);
+		            itemList.put(key, add);
+		        } else {
+		            System.out.println("ignoring line: " + line);
+		        }
+		    }
+		    reader.close();
+		}
+	    
 	}
 	/**
-	 * Method to perform action of adding items to cart and producing a total
+	 * All events that happen within the app
 	 */
 	private void createEvents() {
+		
 		btnAdd.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				addInventory();
@@ -169,13 +245,38 @@ public class TextbookMain {
 				 printInv();
 			}
 		});
+		btnDeleteByKey.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				 deleteBook();
+			}
+		});
+		btnSave.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				 try {
+					writeFile();
+				} catch (IOException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+			}
+		});
 	}
-	/**
-	 * Method to produce output
-	 */
+	public void writeFile()throws IOException {
+		File file = new File("out.txt");		//create a File object
+		FileWriter fw = new FileWriter(file);	//create a FileWriter
+		PrintWriter pw = new PrintWriter(fw);	//Create a PrintWriter
+		
+		itemList.entrySet().forEach(entry->{
+		    pw.println(entry.getKey() + ":" + entry.getValue().getItemPlain());  
+		 });
+		
+		pw.close();
+	}
+	
 	private void addInventory() {
 		//Textbook Item Object  
 		s1 = new Item();
+		
 		s1.title = textItem.getText();
 		s1.price = Double.parseDouble(textCost.getText());
 		s1.quantity = Integer.parseInt(textQ.getText());
@@ -183,14 +284,28 @@ public class TextbookMain {
 		
 		//Textbook HashMap to store item object and SKU iterator
 		inventory = new Library();
-		int count = inventory.itemList.getOrDefault(s1, 0); // ensure count will be one of 0,1,2,3,...
-		inventory.itemList.put(s1, count + 1);
+		int SKU = Integer.parseInt(textSKU.getText());
+		if (itemList.containsKey(SKU)) {
+			textCartOutput.setText("Please select a unique key for your inventory, that is already taken.");
+			textCartOutput.append("\nSKUs that are already taken include: " + itemList.keySet().toString());
+		}else
+			itemList.put(SKU, s1);
 	}
 	private void printBook() {
-	
-		
+		int find = Integer.parseInt(textKey.getText());
+		String bookFound = itemList.get(find).getItemInfo();
+		textCartOutput.setText(bookFound);
 	}
 	private void printInv() {
-		inventory.getInv();
+		inventory.getInv(itemList);
+	}
+	private void deleteBook() {
+		int find = Integer.parseInt(textKey.getText());
+		if (itemList.containsKey(find)) {
+			String bookFound = itemList.get(find).getItemInfo();
+			textCartOutput.setText(bookFound + " was deleted from inventory");
+			itemList.remove(find);
+		}else
+			textCartOutput.setText("No book found with that unique SKU");
 	}
 }
