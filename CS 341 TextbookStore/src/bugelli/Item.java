@@ -19,6 +19,10 @@ public class Item implements Serializable{
 		NumberFormat n = NumberFormat.getCurrencyInstance(Locale.US);
 		return this.title + " " + n.format(this.price) + " " + this.quantity;
 	}
+	/**
+	 * Tester method to make sure items are added to the map correctly, only called while testing code
+	 * @return Item and all its information without altering it
+	 */
 	public String getItemPlain() {
 		return this.title + " " + this.price + " " + this.quantity;
 	}

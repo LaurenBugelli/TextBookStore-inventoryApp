@@ -194,7 +194,11 @@ public class TextbookMain {
 		btnSave.setBounds(117, 238, 189, 23);
 		frame.getContentPane().add(btnSave);
 	}
-	
+	/**
+	 * This method is called on start up of the app to check for previous memory or inventory already added to the map
+	 * @throws NumberFormatException
+	 * @throws IOException
+	 */
 	private void checkFile() throws NumberFormatException, IOException {
 		File f = new File("out.txt");
 		if(f.exists()) {
@@ -261,6 +265,10 @@ public class TextbookMain {
 			}
 		});
 	}
+	/**
+	 * This will save all new inventory to file so on uplaod, the new file wll contain all added inventory
+	 * @throws IOException
+	 */
 	public void writeFile()throws IOException {
 		File file = new File("out.txt");		//create a File object
 		FileWriter fw = new FileWriter(file);	//create a FileWriter
@@ -272,7 +280,9 @@ public class TextbookMain {
 		
 		pw.close();
 	}
-	
+	/**
+	 * This will add the individual object with all its attributes to the hashmap
+	 */
 	private void addInventory() {
 		//Textbook Item Object  
 		s1 = new Item();
@@ -285,20 +295,31 @@ public class TextbookMain {
 		//Textbook HashMap to store item object and SKU iterator
 		inventory = new Library();
 		int SKU = Integer.parseInt(textSKU.getText());
+		//error handler if SKU is already taken
 		if (itemList.containsKey(SKU)) {
 			textCartOutput.setText("Please select a unique key for your inventory, that is already taken.");
 			textCartOutput.append("\nSKUs that are already taken include: " + itemList.keySet().toString());
 		}else
 			itemList.put(SKU, s1);
 	}
+	/**
+	 * This method is called when the user wishes to search for a single book by the sku
+	 */
 	private void printBook() {
 		int find = Integer.parseInt(textKey.getText());
 		String bookFound = itemList.get(find).getItemInfo();
 		textCartOutput.setText(bookFound);
 	}
+	/**
+	 * This method will print the entire inventory for the user
+	 */
 	private void printInv() {
-		inventory.getInv(itemList);
+		String out = inventory.getInv(itemList);
+		textCartOutput.append(out);
 	}
+	/**
+	 * This method is used to delete a book from the inventory by the sku number
+	 */
 	private void deleteBook() {
 		int find = Integer.parseInt(textKey.getText());
 		if (itemList.containsKey(find)) {
